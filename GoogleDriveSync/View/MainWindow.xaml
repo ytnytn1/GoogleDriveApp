@@ -1,0 +1,78 @@
+﻿<Window x:Class="MainView.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MainView"
+        xmlns:behaviors="clr-namespace:MainView.behaviors"
+        xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+        xmlns:viewModel="clr-namespace:ViewModel;assembly=ViewModel"
+        mc:Ignorable="d"        
+        Title="MainWindow" Height="350" Width="525"
+        d:DataContext="{d:DesignInstance viewModel:MainViewModel}"
+        SizeToContent="WidthAndHeight">
+    <Window.Resources>
+        <local:Converter x:Key="Converter"/>
+        <behaviors:BindableSelectedItems x:Key="BindableSelectedItems"/>
+        <Style x:Key="buttonStyle" TargetType="Button">
+            <Setter Property="Width" Value="60"/>
+            <Setter Property="Height" Value="30"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition/>
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsLoggedIn}"
+                    Grid.Row="2">
+            <Button Style="{StaticResource buttonStyle}" Content="Home" />
+            <Button Style="{StaticResource buttonStyle}" Content="Go Up" Command="{Binding GoUpCommand}"/>
+            <Button Style="{StaticResource buttonStyle}" Content="Back" />
+            <ProgressBar Name="progressBar" IsIndeterminate="True" Width="550" Height="20" Margin="25,0,0,0" Visibility="Collapsed"/>
+         </StackPanel>
+        
+        <DataGrid Name="GridItems" 
+                  ItemsSource="{Binding Files, UpdateSourceTrigger=PropertyChanged}" 
+                  AutoGenerateColumns="False" 
+                  CanUserAddRows="False" IsReadOnly="True"
+                  Grid.Row="1">
+            <!--<i:Interaction.Behaviors>
+                <behaviors:BindableSelectedItems x:Name="FileSelection" 
+                                         SelectedItems="{Binding SelectedItems, Mode=OneWayToSource}"/>
+            </i:Interaction.Behaviors>-->
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="SelectionChanged">
+                    <i:InvokeCommandAction Command="{Binding SelectItemsCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
+                </i:EventTrigger>
+                <i:EventTrigger EventName="MouseDoubleClick">
+                    <i:InvokeCommandAction Command="{Binding MouseDblClickCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Width="300" Binding="{Binding Path=Title}"/>
+                <!--<DataGridTextColumn Header="Date" Width="100" Binding="{Binding Path=LastModified, StringFormat='dd/MM/yyyy hh:mm'}"/>
+                <DataGridTextColumn Header="Size" Width="100" Binding="{Binding Path=ContentLength}"/>
+                <DataGridTextColumn Header="Type" Width="100" Binding="{Binding Path=ContentType}"/>
+                <DataGridTextColumn Header="Public" Width="*" Binding="{Binding Path=PublicUrl}" />-->
+            </DataGrid.Columns>
+        </DataGrid>
+        <DockPanel Grid.Row="0" VerticalAlignment="Bottom">
+            <DockPanel >
+                <Button Style="{StaticResource buttonStyle}" Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding IsFree}"/>
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsDownloadAvailable}" Content="Get" />
+                <Button Style="{StaticResource buttonStyle}" Content="Upload" />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Copy"  />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Cut"  />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsExistItems}" Content="Paste"  />
+                <Button Style="{StaticResource buttonStyle}" Content="Make Dir" />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Remove"  />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Trash" />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSingleSelected}" Content="Publish"  />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSingleSelected}" Content="UnPublish" />
+            </DockPanel>
+        </DockPanel>
+    </Grid>
+</Window>
