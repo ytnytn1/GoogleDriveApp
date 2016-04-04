@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using Google.Apis.Drive.v2;
 using Google.Apis.Drive.v2.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using RestSharp;
 using File = Google.Apis.Drive.v2.Data.File;
 
 namespace Services
@@ -26,7 +28,7 @@ namespace Services
         public GoogleDriveService()
         {
             UserCredential credential;
-
+            
             using (var stream =
                 new FileStream("client_secret.json", FileMode.Open, FileAccess.Read))
             {
@@ -48,10 +50,47 @@ namespace Services
             });
         }
 
-        public async Task<IList<File>> GetFileListAsync()
-        {
-            return _service.Files.List().Execute().Items; //.Result.Items
+        public Task<About> GetInformation()
+        {           
+            var about = _service.About.Get().ExecuteAsync();          
+            return about;
         }
-        
+
+        public Task<FileList> GetFileListAsync()
+        {
+            FilesResource.ListRequest request = _service.Files.List();
+            request.Q = "'me' in owners";
+            return  request.ExecuteAsync();
+        }
+
+        public Boolean DownloadFile(File fileResource, string saveTo)
+        {
+            if (!String.IsNullOrEmpty(fileResource.DownloadUrl))
+            {
+                try
+                {
+                    var x = _service.HttpClient.GetByteArrayAsync(fileResource.DownloadUrl);
+                    byte[] arrBytes = x.Result;
+                    BinaryWriter writer = null;
+                    string Name = @"C:\temp\yourfile.name";
+                    // Create a new stream to write to the file
+                    writer = new BinaryWriter(System.IO.File.OpenWrite(saveTo));             
+                    writer.Write(arrBytes);
+                    writer.Flush();
+                    writer.Close();
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("An error occurred: " + e.Message);
+                    return false;
+                }
+            }
+            else
+            {
+                // The file doesn't have any content stored on Drive.
+                return false;
+            }
+        }
     }
 }

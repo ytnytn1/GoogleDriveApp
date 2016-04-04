@@ -10,7 +10,8 @@
         mc:Ignorable="d"        
         Title="MainWindow" Height="350" Width="525"
         d:DataContext="{d:DesignInstance viewModel:MainViewModel}"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="WidthAndHeight" IsEnabled="{Binding IsFree}">
+
     <Window.Resources>
         <local:Converter x:Key="Converter"/>
         <behaviors:BindableSelectedItems x:Key="BindableSelectedItems"/>
@@ -19,6 +20,11 @@
             <Setter Property="Height" Value="30"/>
         </Style>
     </Window.Resources>
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="ContentRendered">
+            <i:InvokeCommandAction Command="{Binding LoadedCommand}"/>
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="30"/>
@@ -62,7 +68,7 @@
         <DockPanel Grid.Row="0" VerticalAlignment="Bottom">
             <DockPanel >
                 <Button Style="{StaticResource buttonStyle}" Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding IsFree}"/>
-                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsDownloadAvailable}" Content="Get" />
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsFree}" Content="Download" Command="{Binding DownLoadCommand}" />
                 <Button Style="{StaticResource buttonStyle}" Content="Upload" />
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Copy"  />
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Cut"  />

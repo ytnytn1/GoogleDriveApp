@@ -1,4 +1,5 @@
-﻿using ViewModel;
+﻿using System.Windows;
+using ViewModel;
 
 namespace MainView
 {
@@ -9,9 +10,14 @@ namespace MainView
     {       
         public MainWindow()
         {
-            InitializeComponent();
-            DataContext = new MainViewModel();            
+            
+            DataContext = new MainViewModel();
+            InitializeComponent();           
         }
-        
+
+        private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            
+        }
     }
 }

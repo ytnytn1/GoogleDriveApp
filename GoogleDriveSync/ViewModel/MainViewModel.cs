@@ -8,36 +8,46 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Input;
 using Google;
 using Google.Apis.Drive.v2.Data;
 using IkitMita.Mvvm.ViewModels;
+using Microsoft.Win32;
 using Services;
 using ViewModel.View.ViewModel;
+using MessageBox = System.Windows.MessageBox;
 
 namespace ViewModel
 {
     public class MainViewModel: ViewModelBase
     {
         private GoogleDriveService _googleDriveService;
+        private File _previuousFolder;
+        private ICommand _loadedCommand;
+        private List<File> _selectedItems;
+        private List<File> _allFiles;
+        private ICommand _selectItemsCommand;
+        private List<File> _files;
+        private ICommand _mouseDblClickCommand;
+        private ICommand _refreshCommand;
+        private ICommand _goUpCommand;
+        private string _rootId;
+        private readonly string _folderMimetype = "application/vnd.google-apps.folder";
+        private ICommand _downLoadCommand;
 
         public MainViewModel()
         {
-            //_selectItemsCommand = new DelegateCommand(=> SelectedItems);
-            _googleDriveService = new GoogleDriveService();
-            //_allFiles = _googleDriveService.GetFileListAsync().Result.Items;;
-            _allFiles = GetFiles().Result.Where(f => f.OwnerNames[0] == "Иван Грищенко").ToList();
-            Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == "0AGaq3l-wPo8YUk9PVA").ToList();
-
+            //_selectItemsCommand = new DelegateCommand(=> _selectedItems);           
         }
-        private async Task<IList<File>> GetFiles()
+
+        private async Task<List<File>> GetFiles()
         {
             try
             {
                 using (StartOperation())
-                {
-                    return  await _googleDriveService.GetFileListAsync();
+                {   var fileList = await _googleDriveService.GetFileListAsync();
+                    return fileList.Items.ToList();
                 }                            
             }
             catch (HttpRequestException requestException)
@@ -47,33 +57,40 @@ namespace ViewModel
             }            
         }
 
-        private List<File> _allFiles;
-        private ICommand _selectItemsCommand;
-        private List<File> _files;
-        private ICommand _mouseDblClickCommand;
-        private ICommand _refreshCommand;
-        private readonly ICommand _goUpCommand;
-
+        private async Task<About> GetInfo()
+        {
+            try
+            {
+                using (StartOperation())
+                {
+                    return await _googleDriveService.GetInformation();
+                }
+            }
+            catch (HttpRequestException requestException)
+            {
+                MessageBox.Show(requestException.Message);
+                return null;
+            }
+        }
 
         private void SelectItems(object items)
         {
-            var x = items.GetType();
-            SelectedItems = new List<File>();
+            _selectedItems = new List<File>();
             foreach (var item in (IEnumerable)items)
             {
-                SelectedItems.Add((File)item);
+                _selectedItems.Add((File)item);
             }
-            Debug.WriteLine(SelectedItems.Count);
+            Debug.WriteLine(_selectedItems.Count);
         }
 
         public void OnMouseDoubleClick(object obj)
         {
-            var item = SelectedItems.FirstOrDefault();
+            var item = _selectedItems.FirstOrDefault();
             if (_previuousFolder?.Id != item?.Id)
             {
                 _previuousFolder = item;
             }
-            if (item.MimeType.Contains("folder"))
+            if (item.MimeType == _folderMimetype)
             {
                 var x = _allFiles.FirstOrDefault(f => f.Id == item.Id);//0B2aq3l-wPo8YWFBITy00V0JuLWc
                 var items = new List<File>(_allFiles.Where(f => f.Parents[0].Id == x.Id).ToList());
@@ -92,45 +109,27 @@ namespace ViewModel
             }
         }
 
-        public ICommand SelectItemsCommand
-        {
-            get
-            {
-                return _selectItemsCommand ??
-                       (_selectItemsCommand = new RelayCommand(SelectItems));
-            }
-        }
+        public ICommand SelectItemsCommand => _selectItemsCommand ??
+                                              (_selectItemsCommand = new RelayCommand(SelectItems));
 
-        public ICommand MouseDblClickCommand
-        {
-            get
-            {
-                return _mouseDblClickCommand ??
-                       (_mouseDblClickCommand = new RelayCommand(OnMouseDoubleClick));
-            }
-        }
+        public ICommand MouseDblClickCommand => _mouseDblClickCommand ??
+                                                (_mouseDblClickCommand = new RelayCommand(OnMouseDoubleClick));
 
-        public ICommand RefreshCommand
-        {
-            get { return _refreshCommand ??
-                    (_refreshCommand = new RelayCommand(Refresh)); }
-        }
-       
+        public ICommand RefreshCommand => _refreshCommand ??
+                                          (_refreshCommand = new RelayCommand(Refresh));
+
 
         private async void Refresh(object obj)
         {
             using (StartOperation())
             {
-                await _googleDriveService.GetFileListAsync();
+                 _googleDriveService.GetFileListAsync();
             }
                                
         }
 
-        public ICommand GoUpCommand
-        {
-            get { return _goUpCommand ??
-                    (_refreshCommand = new DelegateCommand(GoUp)); }
-        }
+        public ICommand GoUpCommand => _goUpCommand ??
+                                       (_goUpCommand = new DelegateCommand(GoUp));
 
         private void GoUp()
         {
@@ -155,8 +154,31 @@ namespace ViewModel
             }                                       
         }
 
-        private File _previuousFolder;
+        public ICommand LoadedCommand => _loadedCommand ??
+                                         (_loadedCommand = new RelayCommand(OnLoad));
 
-        private List<File> SelectedItems { get; set; }
+        private async void OnLoad(object obj)
+        {
+             _googleDriveService = new GoogleDriveService();
+
+            _allFiles = await GetFiles();
+            var about = await GetInfo();
+            _rootId = about.RootFolderId;
+            Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == _rootId).ToList();
+        }
+
+        public ICommand DownLoadCommand => _downLoadCommand ??
+            (_downLoadCommand = new DelegateCommand(Download));
+
+        private void Download()
+        {
+            FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
+            folderBrowser.ShowDialog();
+            var path = folderBrowser.SelectedPath;
+            foreach (var selectedItem in _selectedItems)
+            {
+                var x = _googleDriveService.DownloadFile(selectedItem, path+"\\"+selectedItem.Title);
+            }
+        }
     }
 }
