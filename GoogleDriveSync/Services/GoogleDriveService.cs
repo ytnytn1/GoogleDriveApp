@@ -48,9 +48,9 @@ namespace Services
             });
         }
 
-        public Task<FileList> GetFileListAsync()
+        public async Task<IList<File>> GetFileListAsync()
         {
-            return _service.Files.List().ExecuteAsync(); //.Result.Items
+            return _service.Files.List().Execute().Items; //.Result.Items
         }
         
     }

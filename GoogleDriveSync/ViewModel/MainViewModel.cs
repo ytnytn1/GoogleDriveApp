@@ -27,17 +27,17 @@ namespace ViewModel
             //_selectItemsCommand = new DelegateCommand(=> SelectedItems);
             _googleDriveService = new GoogleDriveService();
             //_allFiles = _googleDriveService.GetFileListAsync().Result.Items;;
-            _allFiles = GetFiles().Result.Items.Where(f => f.OwnerNames[0] == "Иван Грищенко").ToList();
+            _allFiles = GetFiles().Result.Where(f => f.OwnerNames[0] == "Иван Грищенко").ToList();
             Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == "0AGaq3l-wPo8YUk9PVA").ToList();
 
         }
-        private  Task<FileList> GetFiles()
+        private async Task<IList<File>> GetFiles()
         {
             try
             {
                 using (StartOperation())
                 {
-                    return  _googleDriveService.GetFileListAsync();
+                    return  await _googleDriveService.GetFileListAsync();
                 }                            
             }
             catch (HttpRequestException requestException)
@@ -117,12 +117,13 @@ namespace ViewModel
         }
        
 
-        private async void Refresh(object o)
+        private async void Refresh(object obj)
         {
             using (StartOperation())
             {
                 await _googleDriveService.GetFileListAsync();
-            }                     
+            }
+                               
         }
 
         public ICommand GoUpCommand
@@ -133,12 +134,25 @@ namespace ViewModel
 
         private void GoUp()
         {
-            var parentId = Files.FirstOrDefault().Parents.FirstOrDefault().Id;                     
-            var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.Parents.FirstOrDefault()?.Id;
-            if (parentOfParent != null)
+            string parentId = null;
+            if (Files.Count != 0)
             {
-                Files = _allFiles.Where(f => f.Parents.FirstOrDefault().Id == parentOfParent).ToList();
-            }          
+               parentId = Files?.FirstOrDefault()?.Parents.FirstOrDefault()?.Id;
+               var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.Parents.FirstOrDefault()?.Id;
+                if (parentOfParent != null)
+               {
+                   Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == parentOfParent).ToList();
+               }
+            }
+            else
+            {
+                parentId = _previuousFolder?.Parents.FirstOrDefault()?.Id;
+                var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.Parents.FirstOrDefault()?.Id;
+                if (parentOfParent != null)
+                {
+                    Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == parentId).ToList();
+                }
+            }                                       
         }
 
         private File _previuousFolder;
