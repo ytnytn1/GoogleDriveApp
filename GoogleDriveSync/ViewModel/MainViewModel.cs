@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
 using Google;
+using Google.Apis.Download;
 using Google.Apis.Drive.v2.Data;
 using IkitMita.Mvvm.ViewModels;
 using Microsoft.Win32;
@@ -159,26 +160,52 @@ namespace ViewModel
 
         private async void OnLoad(object obj)
         {
-             _googleDriveService = new GoogleDriveService();
-
-            _allFiles = await GetFiles();
-            var about = await GetInfo();
-            _rootId = about.RootFolderId;
-            Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == _rootId).ToList();
+            About about = null;           
+            using (StartOperation())
+            {
+                try
+                {
+                    _googleDriveService = new GoogleDriveService();
+                    _allFiles = await GetFiles();
+                    about = await GetInfo();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+               
+            }                        
+            _rootId = about?.RootFolderId;
+            Files = _allFiles?.Where(f => f.Parents.FirstOrDefault()?.Id == _rootId).ToList();
         }
 
         public ICommand DownLoadCommand => _downLoadCommand ??
-            (_downLoadCommand = new DelegateCommand(Download));
+            (_downLoadCommand = new RelayCommand(Download, 
+                o => _selectedItems != null && _selectedItems.Count > 0));
 
-        private void Download()
+        private async  void Download(object o)
         {
             FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
             folderBrowser.ShowDialog();
             var path = folderBrowser.SelectedPath;
-            foreach (var selectedItem in _selectedItems)
+            try
             {
-                var x = _googleDriveService.DownloadFile(selectedItem, path+"\\"+selectedItem.Title);
+                using (StartOperation())
+                {
+                     foreach (var selectedItem in _selectedItems)
+                    {
+                         var result = await _googleDriveService.DownloadFile(selectedItem, path+"\\"+selectedItem.Title);
+                        if (result != DownloadStatus.Completed)
+                        {
+                            MessageBox.Show($"Фаил {selectedItem.Title} не был загружен");
+                        }
+                    }
+                }
             }
+            catch (Exception ex)
+            {                
+                MessageBox.Show(ex.Message);
+            }                     
         }
     }
 }

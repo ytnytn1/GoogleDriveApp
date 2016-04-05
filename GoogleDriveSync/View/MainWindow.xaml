@@ -10,10 +10,11 @@
         mc:Ignorable="d"        
         Title="MainWindow" Height="350" Width="525"
         d:DataContext="{d:DesignInstance viewModel:MainViewModel}"
-        SizeToContent="WidthAndHeight" IsEnabled="{Binding IsFree}">
+        SizeToContent="WidthAndHeight">
 
     <Window.Resources>
         <local:Converter x:Key="Converter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <behaviors:BindableSelectedItems x:Key="BindableSelectedItems"/>
         <Style x:Key="buttonStyle" TargetType="Button">
             <Setter Property="Width" Value="60"/>
@@ -37,7 +38,9 @@
             <Button Style="{StaticResource buttonStyle}" Content="Home" />
             <Button Style="{StaticResource buttonStyle}" Content="Go Up" Command="{Binding GoUpCommand}"/>
             <Button Style="{StaticResource buttonStyle}" Content="Back" />
-            <ProgressBar Name="progressBar" IsIndeterminate="True" Width="550" Height="20" Margin="25,0,0,0" Visibility="Collapsed"/>
+            <ProgressBar Name="progressBar" IsIndeterminate="True" 
+                         Width="550" Height="20" Margin="25,0,0,0" 
+                         Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
          </StackPanel>
         
         <DataGrid Name="GridItems" 

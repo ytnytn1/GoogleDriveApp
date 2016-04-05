@@ -1,18 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Download;
 using Google.Apis.Drive.v2;
 using Google.Apis.Drive.v2.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
-using RestSharp;
 using File = Google.Apis.Drive.v2.Data.File;
 
 namespace Services
@@ -25,6 +20,10 @@ namespace Services
 
         private readonly DriveService _service;
 
+        private const int KB = 0x400;
+
+        private const int DownloadChunkSize = 10024 * KB;
+
         public GoogleDriveService()
         {
             UserCredential credential;
@@ -32,9 +31,9 @@ namespace Services
             using (var stream =
                 new FileStream("client_secret.json", FileMode.Open, FileAccess.Read))
             {
-                string credPath = System.Environment.GetFolderPath(
-                    System.Environment.SpecialFolder.Personal);
-                credPath = System.IO.Path.Combine(credPath, ".credentials/drive-dotnet-quickstart.json");
+                string credPath = Environment.GetFolderPath(
+                    Environment.SpecialFolder.Personal);
+                credPath = Path.Combine(credPath, ".credentials/drive-dotnet-quickstart.json");
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.Load(stream).Secrets,
                     _scopes,
@@ -43,10 +42,10 @@ namespace Services
                     new FileDataStore(credPath, true)).Result;
                 Console.WriteLine("Credential file saved to: " + credPath);
             }
-            _service = new DriveService(new BaseClientService.Initializer()
+            _service = new DriveService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
-                ApplicationName = ApplicationName,
+                ApplicationName = ApplicationName
             });
         }
 
@@ -63,34 +62,42 @@ namespace Services
             return  request.ExecuteAsync();
         }
 
-        public Boolean DownloadFile(File fileResource, string saveTo)
+        public async Task<DownloadStatus> DownloadFile(File fileResource, string saveTo)
         {
             if (!String.IsNullOrEmpty(fileResource.DownloadUrl))
             {
-                try
+                var downloader = new MediaDownloader(_service);
+                using (var fileStream = new FileStream(saveTo,
+                       FileMode.Create, FileAccess.Write))
                 {
-                    var x = _service.HttpClient.GetByteArrayAsync(fileResource.DownloadUrl);
-                    byte[] arrBytes = x.Result;
-                    BinaryWriter writer = null;
-                    string Name = @"C:\temp\yourfile.name";
-                    // Create a new stream to write to the file
-                    writer = new BinaryWriter(System.IO.File.OpenWrite(saveTo));             
-                    writer.Write(arrBytes);
-                    writer.Flush();
-                    writer.Close();
-                    return true;
+                    var progress = await downloader.DownloadAsync(fileResource.DownloadUrl, fileStream);
+
+                    if (progress.Status == DownloadStatus.Completed)
+                    {
+                        return DownloadStatus.Completed;
+                    }
+                    return DownloadStatus.Failed;
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine("An error occurred: " + e.Message);
-                    return false;
-                }
+                //try
+                //{
+
+                //    //var x = await _service.HttpClient.GetByteArrayAsync(fileResource.DownloadUrl);
+                //    //byte[] arrBytes = x;
+                //    //using (var writer = new BinaryWriter(System.IO.File.OpenWrite(saveTo)))
+                //    //{
+                //    //    var progress = await downloader.DownloadAsync(fileResource.DownloadUrl, writer);
+                //    //    writer.Write(arrBytes);
+                //    //    writer.Flush();
+                //    //    writer.Close();
+                //    //    return Task;
+                //    //}
+                //}
+                //catch (Exception e)
+                //{
+                //    Console.WriteLine("An error occurred: " + e.Message);
+                //}
             }
-            else
-            {
-                // The file doesn't have any content stored on Drive.
-                return false;
-            }
+            return DownloadStatus.NotStarted;
         }
     }
 }
