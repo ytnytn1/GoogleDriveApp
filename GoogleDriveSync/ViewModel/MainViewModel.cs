@@ -3,18 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
-using Google;
-using Google.Apis.Download;
-using Google.Apis.Drive.v2.Data;
 using IkitMita.Mvvm.ViewModels;
-using Microsoft.Win32;
+using Model;
 using Services;
 using ViewModel.View.ViewModel;
 using MessageBox = System.Windows.MessageBox;
@@ -24,17 +18,16 @@ namespace ViewModel
     public class MainViewModel: ViewModelBase
     {
         private GoogleDriveService _googleDriveService;
-        private File _previuousFolder;
+        private MyFile _previuousFolder;
         private ICommand _loadedCommand;
-        private List<File> _selectedItems;
-        private List<File> _allFiles;
+        private List<MyFile> _selectedItems;
         private ICommand _selectItemsCommand;
-        private List<File> _files;
+        private List<MyFile> _files;
+        private List<MyFile> _allFiles;
         private ICommand _mouseDblClickCommand;
         private ICommand _refreshCommand;
         private ICommand _goUpCommand;
         private string _rootId;
-        private readonly string _folderMimetype = "application/vnd.google-apps.folder";
         private ICommand _downLoadCommand;
 
         public MainViewModel()
@@ -42,13 +35,14 @@ namespace ViewModel
             //_selectItemsCommand = new DelegateCommand(=> _selectedItems);           
         }
 
-        private async Task<List<File>> GetFiles()
+        private async Task<List<MyFile>> GetFiles()
         {
             try
             {
                 using (StartOperation())
-                {   var fileList = await _googleDriveService.GetFileListAsync();
-                    return fileList.Items.ToList();
+                {   var fileList = await _googleDriveService.GetFileListAsync();                   
+                   // files = fileList.Items.ToList().Select(i => i.Id, x => x.Title);
+                    return fileList;
                 }                            
             }
             catch (HttpRequestException requestException)
@@ -58,13 +52,13 @@ namespace ViewModel
             }            
         }
 
-        private async Task<About> GetInfo()
+        private Task<string> GetInfo()
         {
             try
             {
                 using (StartOperation())
                 {
-                    return await _googleDriveService.GetInformation();
+                    return _googleDriveService.GetRootId();
                 }
             }
             catch (HttpRequestException requestException)
@@ -76,10 +70,10 @@ namespace ViewModel
 
         private void SelectItems(object items)
         {
-            _selectedItems = new List<File>();
+            _selectedItems = new List<MyFile>();
             foreach (var item in (IEnumerable)items)
             {
-                _selectedItems.Add((File)item);
+                _selectedItems.Add((MyFile)item);
             }
             Debug.WriteLine(_selectedItems.Count);
         }
@@ -91,15 +85,15 @@ namespace ViewModel
             {
                 _previuousFolder = item;
             }
-            if (item.MimeType == _folderMimetype)
+            if (item.IsFolder)
             {
                 var x = _allFiles.FirstOrDefault(f => f.Id == item.Id);//0B2aq3l-wPo8YWFBITy00V0JuLWc
-                var items = new List<File>(_allFiles.Where(f => f.Parents[0].Id == x.Id).ToList());
+                var items = new List<MyFile>(_allFiles.Where(f => f.ParentId == x.Id).ToList());
                 Files = items;
             }           
         }
 
-        public List<File> Files
+        public List<MyFile> Files
         {
             get { return _files; }
             set
@@ -137,20 +131,20 @@ namespace ViewModel
             string parentId = null;
             if (Files.Count != 0)
             {
-               parentId = Files?.FirstOrDefault()?.Parents.FirstOrDefault()?.Id;
-               var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.Parents.FirstOrDefault()?.Id;
+                parentId = Files?.FirstOrDefault()?.ParentId;
+               var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.ParentId;
                 if (parentOfParent != null)
                {
-                   Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == parentOfParent).ToList();
+                   Files = _allFiles.Where(f => f.ParentId == parentOfParent).ToList();
                }
             }
             else
             {
-                parentId = _previuousFolder?.Parents.FirstOrDefault()?.Id;
-                var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.Parents.FirstOrDefault()?.Id;
+                parentId = _previuousFolder?.ParentId;
+                var parentOfParent = _allFiles.FirstOrDefault(f => f.Id == parentId)?.ParentId;
                 if (parentOfParent != null)
                 {
-                    Files = _allFiles.Where(f => f.Parents.FirstOrDefault()?.Id == parentId).ToList();
+                    Files = _allFiles.Where(f => f.ParentId == parentId).ToList();
                 }
             }                                       
         }
@@ -159,15 +153,14 @@ namespace ViewModel
                                          (_loadedCommand = new RelayCommand(OnLoad));
 
         private async void OnLoad(object obj)
-        {
-            About about = null;           
+        {        
             using (StartOperation())
             {
                 try
                 {
                     _googleDriveService = new GoogleDriveService();
                     _allFiles = await GetFiles();
-                    about = await GetInfo();
+                    _rootId =  await GetInfo();
                 }
                 catch (Exception ex)
                 {
@@ -175,8 +168,7 @@ namespace ViewModel
                 }
                
             }                        
-            _rootId = about?.RootFolderId;
-            Files = _allFiles?.Where(f => f.Parents.FirstOrDefault()?.Id == _rootId).ToList();
+            Files = _allFiles?.Where(f => f.ParentId == _rootId).ToList();
         }
 
         public ICommand DownLoadCommand => _downLoadCommand ??
@@ -194,10 +186,10 @@ namespace ViewModel
                 {
                      foreach (var selectedItem in _selectedItems)
                     {
-                         var result = await _googleDriveService.DownloadFile(selectedItem, path+"\\"+selectedItem.Title);
-                        if (result != DownloadStatus.Completed)
+                         var result = await _googleDriveService.DownloadFile(selectedItem, path+"\\"+selectedItem.Name);
+                        if (result != StatusOfDownload.DownloadCompleted)
                         {
-                            MessageBox.Show($"Фаил {selectedItem.Title} не был загружен");
+                            MessageBox.Show($"Фаил {selectedItem.Name} не был загружен");
                         }
                     }
                 }

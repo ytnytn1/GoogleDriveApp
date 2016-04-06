@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Apis.Auth.OAuth2;
@@ -8,21 +10,18 @@ using Google.Apis.Drive.v2;
 using Google.Apis.Drive.v2.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using Model;
 using File = Google.Apis.Drive.v2.Data.File;
 
 namespace Services
 {
-    public class GoogleDriveService
+    public class GoogleDriveService: IService
     {
         private readonly string[] _scopes = { DriveService.Scope.Drive };
 
         private readonly string ApplicationName = "Drive API .NET Quickstart";
 
         private readonly DriveService _service;
-
-        private const int KB = 0x400;
-
-        private const int DownloadChunkSize = 10024 * KB;
 
         public GoogleDriveService()
         {
@@ -49,20 +48,30 @@ namespace Services
             });
         }
 
-        public Task<About> GetInformation()
+        public async Task<string> GetRootId()
         {           
-            var about = _service.About.Get().ExecuteAsync();          
-            return about;
+            var about = await _service.About.Get().ExecuteAsync();          
+            return about.RootFolderId;
         }
 
-        public Task<FileList> GetFileListAsync()
+        public async Task<List<MyFile>> GetFileListAsync()
         {
             FilesResource.ListRequest request = _service.Files.List();
             request.Q = "'me' in owners";
-            return  request.ExecuteAsync();
+            var fileList = await request.ExecuteAsync();
+            var files = fileList.Items.ToList().Select(file => new MyFile
+            {
+                Name = file.Title,
+                Id = file.Id,
+                DownloadUrl = file.DownloadUrl,
+                ParentId = file.Parents.FirstOrDefault()?.Id,
+                Size = file.FileSize, CreationDate = file.CreatedDate,
+                IsFolder = file.MimeType == "application/vnd.google-apps.folder"
+            }).ToList();
+            return files;
         }
 
-        public async Task<DownloadStatus> DownloadFile(File fileResource, string saveTo)
+        public async Task<StatusOfDownload> DownloadFile(MyFile fileResource, string saveTo)
         {
             if (!String.IsNullOrEmpty(fileResource.DownloadUrl))
             {
@@ -74,9 +83,9 @@ namespace Services
 
                     if (progress.Status == DownloadStatus.Completed)
                     {
-                        return DownloadStatus.Completed;
+                        return StatusOfDownload.DownloadCompleted;
                     }
-                    return DownloadStatus.Failed;
+                    return StatusOfDownload.DownLoadFailed;
                 }
                 //try
                 //{
@@ -97,7 +106,7 @@ namespace Services
                 //    Console.WriteLine("An error occurred: " + e.Message);
                 //}
             }
-            return DownloadStatus.NotStarted;
+            return StatusOfDownload.DownloadNotStarted;
         }
     }
 }

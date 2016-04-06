@@ -61,10 +61,10 @@
                 </i:EventTrigger>
             </i:Interaction.Triggers>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Name" Width="300" Binding="{Binding Path=Title}"/>
-                <!--<DataGridTextColumn Header="Date" Width="100" Binding="{Binding Path=LastModified, StringFormat='dd/MM/yyyy hh:mm'}"/>
-                <DataGridTextColumn Header="Size" Width="100" Binding="{Binding Path=ContentLength}"/>
-                <DataGridTextColumn Header="Type" Width="100" Binding="{Binding Path=ContentType}"/>
+                <DataGridTextColumn Header="Name" Width="300" Binding="{Binding Path=Name}"/>
+                <!--<DataGridTextColumn Header="Date" Width="100" Binding="{Binding Path=LastModified, StringFormat='dd/MM/yyyy hh:mm'}"/>-->
+                <DataGridTextColumn Header="Size" Width="100" Binding="{Binding Path=Size}"/>
+                <!--<DataGridTextColumn Header="Type" Width="100" Binding="{Binding Path=ContentType}"/>
                 <DataGridTextColumn Header="Public" Width="*" Binding="{Binding Path=PublicUrl}" />-->
             </DataGrid.Columns>
         </DataGrid>
