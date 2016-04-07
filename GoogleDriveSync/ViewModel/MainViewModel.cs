@@ -9,8 +9,7 @@ using System.Windows.Forms;
 using System.Windows.Input;
 using IkitMita.Mvvm.ViewModels;
 using Model;
-using Services;
-using ViewModel.View.ViewModel;
+using Service;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ViewModel
@@ -29,6 +28,7 @@ namespace ViewModel
         private ICommand _goUpCommand;
         private string _rootId;
         private ICommand _downLoadCommand;
+        private ICommand _closeCommand;
 
         public MainViewModel()
         {
@@ -186,7 +186,7 @@ namespace ViewModel
                 {
                      foreach (var selectedItem in _selectedItems)
                     {
-                         var result = await _googleDriveService.DownloadFile(selectedItem, path+"\\"+selectedItem.Name);
+                        var result = await _googleDriveService.DownloadFile(selectedItem, path);
                         if (result != StatusOfDownload.DownloadCompleted)
                         {
                             MessageBox.Show($"Фаил {selectedItem.Name} не был загружен");
@@ -198,6 +198,14 @@ namespace ViewModel
             {                
                 MessageBox.Show(ex.Message);
             }                     
+        }
+
+        public ICommand CloseCommand => _closeCommand ??
+                                        (_closeCommand = new RelayCommand(Closing));
+
+        private void Closing(object obj)
+        {
+            _googleDriveService.Dispose();
         }
     }
 }

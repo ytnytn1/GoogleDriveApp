@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Model;
 
-namespace Services
+namespace Service
 {
     public interface IService
     {
