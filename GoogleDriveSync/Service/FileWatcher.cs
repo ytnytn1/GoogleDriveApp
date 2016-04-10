@@ -17,10 +17,19 @@ namespace Service
             fileSystemWatcher = new FileSystemWatcher();           
             fileSystemWatcher.Filter = "*.*";
             fileSystemWatcher.Path = path + "\\";
-            fileSystemWatcher.EnableRaisingEvents = true;
+            
             fileSystemWatcher.IncludeSubdirectories = true;
+            fileSystemWatcher.NotifyFilter = 
+                NotifyFilters.FileName | NotifyFilters.DirectoryName 
+                | NotifyFilters.Size;
             fileSystemWatcher.Created += fileSystemWatcher_Created;
-            fileSystemWatcher.Changed += fileSystemWatcher_Changed;
+            fileSystemWatcher.Changed += OnChanged;
+            fileSystemWatcher.EnableRaisingEvents = true;
+        }
+
+        private void OnChanged(object sender, FileSystemEventArgs e)
+        {
+            
         }
 
         private FileSystemWatcher fileSystemWatcher;

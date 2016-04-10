@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -18,21 +19,23 @@ namespace ViewModel
     {
         private GoogleDriveService _googleDriveService;
         private MyFile _previuousFolder;
-        private ICommand _loadedCommand;
-        private List<MyFile> _selectedItems;
+        private ICommand _loadedCommand;        
         private ICommand _selectItemsCommand;
         private List<MyFile> _files;
         private List<MyFile> _allFiles;
         private ICommand _mouseDblClickCommand;
-        private ICommand _refreshCommand;
         private ICommand _goUpCommand;
         private string _rootId;
         private ICommand _downLoadCommand;
         private ICommand _closeCommand;
+        private List<MyFile> _selectedItems;
+        private List<FileWatcher> _fileWatchers = new List<FileWatcher>();
+        private DelegateCommand _syncCommand;
 
         public MainViewModel()
         {
-            //_selectItemsCommand = new DelegateCommand(=> _selectedItems);           
+            //_selectItemsCommand = new DelegateCommand(=> _selectedItems);   
+            _selectedItems = new List<MyFile>();        
         }
 
         private async Task<List<MyFile>> GetFiles()
@@ -78,7 +81,7 @@ namespace ViewModel
             Debug.WriteLine(_selectedItems.Count);
         }
 
-        public void OnMouseDoubleClick(object obj)
+        public void OnMouseDoubleClick()
         {
             var item = _selectedItems.FirstOrDefault();
             if (_previuousFolder?.Id != item?.Id)
@@ -105,20 +108,20 @@ namespace ViewModel
         }
 
         public ICommand SelectItemsCommand => _selectItemsCommand ??
-                                              (_selectItemsCommand = new RelayCommand(SelectItems));
+                                              (_selectItemsCommand = new DelegateCommand<object>(SelectItems));
 
         public ICommand MouseDblClickCommand => _mouseDblClickCommand ??
-                                                (_mouseDblClickCommand = new RelayCommand(OnMouseDoubleClick));
+                                                (_mouseDblClickCommand = new DelegateCommand(OnMouseDoubleClick));
 
-        public ICommand RefreshCommand => _refreshCommand ??
-                                          (_refreshCommand = new RelayCommand(Refresh));
+        public ICommand SyncCommand => _syncCommand ??
+                                          (_syncCommand = new DelegateCommand(Sync));
 
 
-        private async void Refresh(object obj)
+        private async void Sync()
         {
             using (StartOperation())
             {
-                 _googleDriveService.GetFileListAsync();
+                 await _googleDriveService.Synchronize();
             }
                                
         }
@@ -150,9 +153,9 @@ namespace ViewModel
         }
 
         public ICommand LoadedCommand => _loadedCommand ??
-                                         (_loadedCommand = new RelayCommand(OnLoad));
+                                         (_loadedCommand = new DelegateCommand(OnLoad));
 
-        private async void OnLoad(object obj)
+        private async void OnLoad()
         {        
             using (StartOperation())
             {
@@ -172,10 +175,9 @@ namespace ViewModel
         }
 
         public ICommand DownLoadCommand => _downLoadCommand ??
-            (_downLoadCommand = new RelayCommand(Download, 
-                o => _selectedItems != null && _selectedItems.Count > 0));
+                                           (_downLoadCommand = new DelegateCommand<object>(Download));
 
-        private async  void Download(object o)
+        private async void Download(object o)
         {
             FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
             folderBrowser.ShowDialog();
@@ -187,6 +189,7 @@ namespace ViewModel
                      foreach (var selectedItem in _selectedItems)
                     {
                         var result = await _googleDriveService.DownloadFile(selectedItem, path);
+                        //_fileWatchers.Add(new FileWatcher(path));
                         if (result != StatusOfDownload.DownloadCompleted)
                         {
                             MessageBox.Show($"Фаил {selectedItem.Name} не был загружен");
@@ -200,8 +203,37 @@ namespace ViewModel
             }                     
         }
 
+        private bool IsSubDirectoryOf(string candidate, List<string> others)
+        {
+            var isChild = false;
+            try
+            {
+                foreach (var other in others)
+                {
+                    var candidateInfo = new DirectoryInfo(candidate);
+                    var otherInfo = new DirectoryInfo(other);
+
+                    while (candidateInfo.Parent != null)
+                    {
+                        if (candidateInfo.Parent.FullName == otherInfo.FullName || candidate == other)
+                        {
+                            isChild = true;
+                            break;
+                        }
+                        else candidateInfo = candidateInfo.Parent;
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                //var message = String.Format("Unable to check directories {0} and {1}: {2}", candidate, other, error);
+                //Trace.WriteLine(message);
+            }
+            return isChild;
+        }
+
         public ICommand CloseCommand => _closeCommand ??
-                                        (_closeCommand = new RelayCommand(Closing));
+                                        (_closeCommand = new DelegateCommand<object>(Closing));
 
         private void Closing(object obj)
         {

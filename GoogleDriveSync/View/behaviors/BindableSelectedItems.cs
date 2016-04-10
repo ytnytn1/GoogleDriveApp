@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,14 +13,17 @@ namespace MainView.behaviors
 {
     public class BindableSelectedItems: Behavior<DataGrid>
     {
-        public static readonly DependencyProperty SelectedItemsProperty =
-       DependencyProperty.Register("SelectedItems", typeof(IList), typeof(BindableSelectedItems), new PropertyMetadata(default(IList), OnSelectedItemsChanged));
-
-        private static void OnSelectedItemsChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+        protected override void OnAttached()
         {
-            var grid = ((BindableSelectedItems)sender).AssociatedObject;
-            if (grid == null) return;
-            // Add logic to select items in grid
+            base.OnAttached();
+            if (SelectedItems != null)
+            {
+                AssociatedObject.SelectedItems.Clear();
+                foreach (var item in SelectedItems)
+                {
+                    AssociatedObject.SelectedItems.Add(item);
+                }
+            }
         }
 
         public IList SelectedItems
@@ -28,16 +32,131 @@ namespace MainView.behaviors
             set { SetValue(SelectedItemsProperty, value); }
         }
 
-        protected override void OnAttached()
+        public static readonly DependencyProperty SelectedItemsProperty =
+            DependencyProperty.Register("SelectedItems", typeof(IList), typeof(BindableSelectedItems), new UIPropertyMetadata(null, SelectedItemsChanged));
+
+        private static void SelectedItemsChanged(DependencyObject o, DependencyPropertyChangedEventArgs e)
         {
-            base.OnAttached();
-            AssociatedObject.SelectionChanged += AssociatedObject_SelectionChanged;
+            var behavior = o as BindableSelectedItems;
+            if (behavior == null)
+                return;
+
+            var oldValue = e.OldValue as INotifyCollectionChanged;
+            var newValue = e.NewValue as INotifyCollectionChanged;
+
+            if (oldValue != null)
+            {
+                oldValue.CollectionChanged -= behavior.SourceCollectionChanged;
+                behavior.AssociatedObject.SelectionChanged -= behavior.ListBoxSelectionChanged;
+            }
+            if (newValue != null)
+            {
+                behavior.AssociatedObject.SelectedItems.Clear();
+                foreach (var item in (IEnumerable)newValue)
+                {
+                    behavior.AssociatedObject.SelectedItems.Add(item);
+                }
+
+                behavior.AssociatedObject.SelectionChanged += behavior.ListBoxSelectionChanged;
+                newValue.CollectionChanged += behavior.SourceCollectionChanged;
+            }
         }
 
-        void AssociatedObject_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private bool _isUpdatingTarget;
+        private bool _isUpdatingSource;
+
+        void SourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            var grid = (DataGrid)sender;
-            SelectedItems = grid.SelectedItems;
+            if (_isUpdatingSource)
+                return;
+
+            try
+            {
+                _isUpdatingTarget = true;
+
+                if (e.OldItems != null)
+                {
+                    foreach (var item in e.OldItems)
+                    {
+                        AssociatedObject.SelectedItems.Remove(item);
+                    }
+                }
+
+                if (e.NewItems != null)
+                {
+                    foreach (var item in e.NewItems)
+                    {
+                        AssociatedObject.SelectedItems.Add(item);
+                    }
+                }
+            }
+            finally
+            {
+                _isUpdatingTarget = false;
+            }
         }
+
+        private void ListBoxSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingTarget)
+                return;
+
+            var selectedItems = this.SelectedItems;
+            if (selectedItems == null)
+                return;
+
+            try
+            {
+                _isUpdatingSource = true;
+
+                foreach (var item in e.RemovedItems)
+                {
+                    selectedItems.Remove(item);
+                }
+
+                foreach (var item in e.AddedItems)
+                {
+                    selectedItems.Add(item);
+                }
+            }
+            finally
+            {
+                _isUpdatingSource = false;
+            }
+        }
+        //public static readonly DependencyProperty SelectedItemsProperty =
+        //    DependencyProperty.Register("SelectedItems",
+        //        typeof (IList), typeof (BindableSelectedItems),
+        //        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+        //private static void OnSelectedItemsChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+        //{
+        //    var grid = ((BindableSelectedItems)sender).AssociatedObject;
+        //    if (grid == null) return;
+        //    SetSelectedItemsProperty(sender,grid.SelectedItems);
+        //    // Add logic to select items in grid
+        //}
+
+        //private static void  SetSelectedItemsProperty(DependencyObject d, IList values )
+        //{
+        //     d.SetValue(SelectedItemsProperty,values);
+        //}
+        //public IList SelectedItems
+        //{
+        //    get { return (IList)GetValue(SelectedItemsProperty); }
+        //    set { SetValue(SelectedItemsProperty, value); }
+        //}
+
+        //protected override void OnAttached()
+        //{
+        //    base.OnAttached();
+        //    AssociatedObject.SelectionChanged += AssociatedObject_SelectionChanged;
+        //}
+
+        //void AssociatedObject_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        //{
+        //    var grid = (DataGrid)sender;
+        //    SelectedItems = grid.SelectedItems;
+        //}
     }
 }

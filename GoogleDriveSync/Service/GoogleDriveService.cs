@@ -13,32 +13,29 @@ using Google.Apis.Drive.v2;
 using Google.Apis.Drive.v2.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using IkitMita;
 using Model;
 using Newtonsoft.Json;
 using File = Google.Apis.Drive.v2.Data.File;
 
 namespace Service
 {
-    public class GoogleDriveService: IService, IDisposable
+    public class GoogleDriveService : IService, IDisposable
     {
-        private readonly string[] _scopes = { DriveService.Scope.Drive };
-
+        private readonly string[] _scopes = {DriveService.Scope.Drive};
         private Dictionary<string, string> _fileDictionary = new Dictionary<string, string>();
-
         private readonly string ApplicationName = "Drive API .NET Quickstart";
-
-        private string _gDDirectory = "GoogleDrive";
-
         private readonly DriveService _service;
-
         private List<FileWatcher> _fileWatchers;
-
+        private List<FileSystemWatcher> fileSystemWatchers = new List<FileSystemWatcher>();
         private List<string> _pathList = new List<string>();
+        private List<MyFile> _files;
+        private List<MyFile> _downloadedFiles = new List<MyFile>();
 
         public GoogleDriveService()
         {
             UserCredential credential;
-            
+
             using (var stream =
                 new FileStream("client_secret.json", FileMode.Open, FileAccess.Read))
             {
@@ -59,34 +56,36 @@ namespace Service
                 ApplicationName = ApplicationName
             });
             //_fileDictionary = new Dictionary<string, string>();
-            _fileWatchers= new List<FileWatcher>();
-            string pathListJson =  System.IO.File.ReadAllText("JsonData/PathList.Json");
-            var dictionaryJson = System.IO.File.ReadAllText("JsonData/FileDictionary.Json");           
-            _pathList = JsonConvert.DeserializeObject<List<string>>(pathListJson);
-            _fileDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(dictionaryJson);
+            _fileWatchers = new List<FileWatcher>();
+            //string pathListJson =  System.IO.File.ReadAllText("JsonData/PathList.Json");
+            //var dictionaryJson = System.IO.File.ReadAllText("JsonData/FileDictionary.Json");           
+            //_pathList = JsonConvert.DeserializeObject<List<string>>(pathListJson);
+            //_fileDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(dictionaryJson);
         }
 
         public async Task<string> GetRootId()
-        {           
-            var about = await _service.About.Get().ExecuteAsync();          
+        {
+            var about = await _service.About.Get().ExecuteAsync();
             return about.RootFolderId;
         }
-       
+
         public async Task<List<MyFile>> GetFileListAsync()
         {
             FilesResource.ListRequest request = _service.Files.List();
             request.Q = "'me' in owners";
             var fileList = await request.ExecuteAsync();
-            var files = fileList.Items.ToList().Select(file => new MyFile
+            _files = fileList.Items.Select(file => new MyFile
             {
                 Name = file.Title,
                 Id = file.Id,
                 DownloadUrl = file.DownloadUrl,
                 ParentId = file.Parents.FirstOrDefault()?.Id,
-                Size = file.FileSize, CreationDate = file.CreatedDate,
-                IsFolder = file.MimeType == "application/vnd.google-apps.folder"
+                Size = file.FileSize,
+                CreationDate = file.CreatedDate,
+                IsFolder = file.MimeType == "application/vnd.google-apps.folder",
+                ModifiedDate = file.ModifiedDate
             }).ToList();
-            return files;
+            return _files;
         }
 
         public async Task<StatusOfDownload> DownloadFile(MyFile fileResource, string saveTo)
@@ -94,43 +93,32 @@ namespace Service
             DirectoryInfo directoryInfo = new DirectoryInfo(saveTo);
             string fullPath;
             string path;
-            var gDDirectory = directoryInfo.FullName + "\\" + _gDDirectory;
-            if (!saveTo.Contains(_gDDirectory))
+            fullPath = saveTo + "\\" + fileResource.Name;
+            path = saveTo;
+            fileResource.StoredPath = fullPath;
+            if (!fileResource.DownloadUrl.IsNullOrEmpty() && !fileResource.IsFolder)
             {
-                Directory.CreateDirectory(gDDirectory);
-                fullPath = saveTo + "\\" + _gDDirectory + "\\" + fileResource.Name;
-                path = saveTo + "\\" + _gDDirectory;
-            }
-            else
-            {
-                fullPath = saveTo + "\\" + fileResource.Name;
-                path = saveTo;
-            }           
-            if (!String.IsNullOrEmpty(fileResource.DownloadUrl))
-            {
-                var gdDirectoryInfo = new DirectoryInfo(saveTo + "\\" + _gDDirectory);
                 var downloader = new MediaDownloader(_service);
                 using (var fileStream = new FileStream(fullPath,
-                       FileMode.Create, FileAccess.Write))
+                    FileMode.Create, FileAccess.Write))
                 {
                     var progress = await downloader.DownloadAsync(fileResource.DownloadUrl, fileStream);
-
+                    _downloadedFiles.Add(fileResource);
                     if (progress.Status == DownloadStatus.Completed)
                     {
                         if (!IsSubDirectoryOf(path, _pathList))
                         {
-                            _fileWatchers.Add(new FileWatcher(path));
+                            _pathList.Add(path);
                         }
                         if (!_fileDictionary.ContainsKey(fullPath))
                         {
-                            _pathList.Add(path);
                             _fileDictionary.Add(fullPath, fileResource.Id);
                         }
-                        //_fileWatcher.AddPath(saveTo);
                         return StatusOfDownload.DownloadCompleted;
                     }
                     return StatusOfDownload.DownLoadFailed;
                 }
+
                 //try
                 //{
 
@@ -150,10 +138,22 @@ namespace Service
                 //    Console.WriteLine("An error occurred: " + e.Message);
                 //}
             }
+            if(fileResource.IsFolder)
+            {
+                saveTo += "\\" + fileResource.Name;
+                Directory.CreateDirectory(saveTo);
+                var files = _files.Where(f => f.ParentId == fileResource.Id).ToList();
+                foreach (var file in files)
+                {
+                    await DownloadFile(file, saveTo);
+                }
+                return StatusOfDownload.DownloadCompleted;
+            }
             return StatusOfDownload.DownloadNotStarted;
         }
 
-        public bool IsSubDirectoryOf(string candidate, List<string> others)
+
+        private bool IsSubDirectoryOf(string candidate, List<string> others)
         {
             var isChild = false;
             try
@@ -173,14 +173,12 @@ namespace Service
                         else candidateInfo = candidateInfo.Parent;
                     }
                 }
-                
             }
             catch (Exception error)
             {
                 //var message = String.Format("Unable to check directories {0} and {1}: {2}", candidate, other, error);
                 //Trace.WriteLine(message);
             }
-
             return isChild;
         }
 
@@ -202,7 +200,9 @@ namespace Service
 
             return false;
         }
+
         private XmlSerializer Xs { get; set; }
+
         public void Dispose()
         {
 
@@ -212,7 +212,7 @@ namespace Service
             //    Xs.Serialize(wr, _fileDictionary);
             //}
             var filedictionarySerializer = JsonConvert.SerializeObject(_fileDictionary);
-            var pathListSerializer = JsonConvert.SerializeObject(_pathList);           
+            var pathListSerializer = JsonConvert.SerializeObject(_pathList);
             using (StreamWriter fileDictionaryWriter = System.IO.File.CreateText("JsonData/FileDictionary.Json"))
             using (JsonTextWriter jsonTextWriter = new JsonTextWriter(fileDictionaryWriter))
             {
@@ -224,7 +224,89 @@ namespace Service
             {
                 jsonTextWriter.WriteRaw(pathListSerializer);
             }
-            
+
+        }
+
+        public async Task Synchronize()
+        {
+            _files = await GetFileListAsync();
+            var folders = BuildWindowFoldersRepresentaion(_files);
+            var driveFolders = _files.Where(f => f.IsFolder == true).ToList();
+            foreach (var path in _pathList)
+            {
+                string[] fileDirectories = Directory.GetDirectories(path, "*.*",
+                    SearchOption.AllDirectories);
+                string [] localFiles = Directory.GetFiles(path, "*.*",
+                    SearchOption.AllDirectories);
+                //foreach (var localFile in localFiles)
+                //{
+                //    foreach (var driveFolder in driveFolders)
+                //    {
+                //        if(localFile.Contains(driveFolder))
+                //    }
+                //}
+                //var folders = filePaths.S(fp => fp == path).ToList();       
+                foreach (string t in localFiles)
+                {
+                    foreach (var folder in folders.Where(folder => !t.Contains(folder)))
+                    {
+
+                    }
+                }
+                foreach (var downloadedFile in _downloadedFiles)
+                {
+                    FileInfo fi = new FileInfo(downloadedFile.StoredPath);
+                   // var firstOrDefault = _files.FirstOrDefault(f => f.Id == downloadedFile.Id);
+                    if (fi.LastWriteTime > _files.FirstOrDefault(f => f.Id == downloadedFile.Id)?.ModifiedDate)
+                    {
+                        await UpdateFile(_service, downloadedFile.Id, downloadedFile.StoredPath, true);
+                    }
+                }               
+            }
+        }
+
+        private List<string> BuildWindowFoldersRepresentaion(List<MyFile> files )
+        {
+            List<string> folders = new List<string>();
+           // var rootId = await GetRootId();
+            foreach (var file in files)
+            {
+                folders.Add(GetParents(file.ParentId, file.Name, files));
+            }
+            return folders;
+        }
+
+        private string GetParents(string parentId, string name, List<MyFile> files )
+        {
+            string x = null;
+            foreach (var file in files.Where(f=>f.Id == parentId))
+            {
+                x = x + GetParents(file.ParentId, file.Name, files) + "//";
+            }
+
+            return x + name;
+        }
+        private async Task UpdateFile(DriveService service, String fileId, String newFilename, bool newRevision)
+        {
+            try
+            {
+                // First retrieve the file from the API.
+                File file = await service.Files.Get(fileId).ExecuteAsync();
+
+                // File's new content.
+                byte[] byteArray = System.IO.File.ReadAllBytes(newFilename);
+                System.IO.MemoryStream stream = new System.IO.MemoryStream(byteArray);
+                // Send the request to the API.
+                FilesResource.UpdateMediaUpload request = service.Files.Update(file, fileId, stream, file.MimeType);
+                request.NewRevision = newRevision;
+                await request.UploadAsync();
+
+                //File updatedFile = request.ResponseBody;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("An error occurred: " + e.Message);
+            }
         }
     }
 }

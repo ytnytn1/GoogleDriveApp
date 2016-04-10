@@ -25,6 +25,12 @@ namespace Model
         public string ParentId { get; set; }
 
         public string DownloadUrl { get; set; }
+
+        public string StoredPath { get; set; }
+
+        public DateTime? ModifiedDate { get; set; }
+
+       
         public event PropertyChangedEventHandler PropertyChanged;
 
         [NotifyPropertyChangedInvocator]

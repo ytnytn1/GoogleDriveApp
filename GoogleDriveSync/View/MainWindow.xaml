@@ -50,22 +50,23 @@
                   ItemsSource="{Binding Files, UpdateSourceTrigger=PropertyChanged}" 
                   AutoGenerateColumns="False" 
                   CanUserAddRows="False" IsReadOnly="True"
-                  Grid.Row="1">
+                  Grid.Row="1"
+                  SelectionMode="Extended">
             <!--<i:Interaction.Behaviors>
                 <behaviors:BindableSelectedItems x:Name="FileSelection" 
-                                         SelectedItems="{Binding SelectedItems, Mode=OneWayToSource}"/>
+                                         SelectedItems="{Binding SelectedItems}"/>
             </i:Interaction.Behaviors>-->
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="SelectionChanged">
                     <i:InvokeCommandAction Command="{Binding SelectItemsCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
                 </i:EventTrigger>
                 <i:EventTrigger EventName="MouseDoubleClick">
-                    <i:InvokeCommandAction Command="{Binding MouseDblClickCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
+                    <i:InvokeCommandAction Command="{Binding MouseDblClickCommand}"/>
                 </i:EventTrigger>
             </i:Interaction.Triggers>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Name" Width="300" Binding="{Binding Path=Name}"/>
-                <!--<DataGridTextColumn Header="Date" Width="100" Binding="{Binding Path=LastModified, StringFormat='dd/MM/yyyy hh:mm'}"/>-->
+                <DataGridTextColumn Header="Date" Width="100" Binding="{Binding Path=ModifiedDate, StringFormat='dd/MM/yyyy hh:mm'}"/>
                 <DataGridTextColumn Header="Size" Width="100" Binding="{Binding Path=Size}"/>
                 <!--<DataGridTextColumn Header="Type" Width="100" Binding="{Binding Path=ContentType}"/>
                 <DataGridTextColumn Header="Public" Width="*" Binding="{Binding Path=PublicUrl}" />-->
@@ -73,8 +74,8 @@
         </DataGrid>
         <DockPanel Grid.Row="0" VerticalAlignment="Bottom">
             <DockPanel >
-                <Button Style="{StaticResource buttonStyle}" Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding IsFree}"/>
-                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsFree}" Content="Download" Command="{Binding DownLoadCommand}" />
+                <Button Style="{StaticResource buttonStyle}" Content="Cинхронизировать" Command="{Binding SyncCommand}" IsEnabled="{Binding IsFree}"/>
+                <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsFree}" Content="Download" Command="{Binding DownLoadCommand}"/>
                 <Button Style="{StaticResource buttonStyle}" Content="Upload" />
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Copy"  />
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSelected}" Content="Cut"  />
@@ -85,6 +86,5 @@
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSingleSelected}" Content="Publish"  />
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSingleSelected}" Content="UnPublish" />
             </DockPanel>
-        </DockPanel>
-    </Grid>
+        </DockPanel></Grid>
 </Window>
