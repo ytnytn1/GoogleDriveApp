@@ -126,6 +126,7 @@
     </Compile>
     <Compile Include="behaviors\BindableSelectedItems.cs" />
     <Compile Include="Converter.cs" />
+    <Compile Include="helpers\RowDoubleClickHandler.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -164,6 +165,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Model\Model.csproj">
+      <Project>{6cba2b79-f172-4f96-9986-5f7006d6984f}</Project>
+      <Name>Model</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ViewModel\ViewModel.csproj">
       <Project>{D280A920-4CFC-48FD-AE2F-7A302B48E38F}</Project>
       <Name>ViewModel</Name>

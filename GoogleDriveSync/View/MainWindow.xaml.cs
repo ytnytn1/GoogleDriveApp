@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Input;
 using ViewModel;
 
 namespace MainView
@@ -16,6 +17,11 @@ namespace MainView
         }
 
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            
+        }
+
+        private void Control_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             
         }

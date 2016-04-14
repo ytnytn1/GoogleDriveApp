@@ -7,6 +7,8 @@
         xmlns:behaviors="clr-namespace:MainView.behaviors"
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:viewModel="clr-namespace:ViewModel;assembly=ViewModel"
+        xmlns:helpers="clr-namespace:MainView.helpers"
+        xmlns:model="clr-namespace:Model;assembly=Model"
         mc:Ignorable="d"        
         Title="MainWindow" Height="350" Width="525"
         d:DataContext="{d:DesignInstance viewModel:MainViewModel}"
@@ -51,7 +53,8 @@
                   AutoGenerateColumns="False" 
                   CanUserAddRows="False" IsReadOnly="True"
                   Grid.Row="1"
-                  SelectionMode="Extended">
+                  SelectionMode="Extended"
+                  >
             <!--<i:Interaction.Behaviors>
                 <behaviors:BindableSelectedItems x:Name="FileSelection" 
                                          SelectedItems="{Binding SelectedItems}"/>
@@ -60,12 +63,29 @@
                 <i:EventTrigger EventName="SelectionChanged">
                     <i:InvokeCommandAction Command="{Binding SelectItemsCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
                 </i:EventTrigger>
-                <i:EventTrigger EventName="MouseDoubleClick">
+                <!--<i:EventTrigger EventName="MouseDoubleClick">
                     <i:InvokeCommandAction Command="{Binding MouseDblClickCommand}"/>
-                </i:EventTrigger>
+                </i:EventTrigger>-->
             </i:Interaction.Triggers>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Name" Width="300" Binding="{Binding Path=Name}"/>
+                <DataGridTemplateColumn Header="Name" Width="300">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="model:MyFile">
+                            <Label Content="{Binding Name}">
+                                <i:Interaction.Triggers>
+                                    <i:EventTrigger EventName="MouseDoubleClick">
+                                        <i:InvokeCommandAction 
+                                            Command="{
+                                                Binding RelativeSource={RelativeSource FindAncestor,
+                                                AncestorType={x:Type Window}}, 
+                                                Path=DataContext.MouseDblClickCommand
+                                            }"/>
+                                    </i:EventTrigger>
+                                </i:Interaction.Triggers>
+                            </Label>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Date" Width="100" Binding="{Binding Path=ModifiedDate, StringFormat='dd/MM/yyyy hh:mm'}"/>
                 <DataGridTextColumn Header="Size" Width="100" Binding="{Binding Path=Size}"/>
                 <!--<DataGridTextColumn Header="Type" Width="100" Binding="{Binding Path=ContentType}"/>

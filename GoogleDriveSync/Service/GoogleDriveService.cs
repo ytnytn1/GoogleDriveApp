@@ -230,29 +230,10 @@ namespace Service
         public async Task Synchronize()
         {
             _files = await GetFileListAsync();
-            var folders = BuildWindowFoldersRepresentaion(_files);
-            var driveFolders = _files.Where(f => f.IsFolder == true).ToList();
+            //List<string> folders = BuildWindowFoldersRepresentaion(_files);
+            //var driveFolders = _files.Where(f => f.IsFolder == true).ToList();
             foreach (var path in _pathList)
-            {
-                string[] fileDirectories = Directory.GetDirectories(path, "*.*",
-                    SearchOption.AllDirectories);
-                string [] localFiles = Directory.GetFiles(path, "*.*",
-                    SearchOption.AllDirectories);
-                //foreach (var localFile in localFiles)
-                //{
-                //    foreach (var driveFolder in driveFolders)
-                //    {
-                //        if(localFile.Contains(driveFolder))
-                //    }
-                //}
-                //var folders = filePaths.S(fp => fp == path).ToList();       
-                foreach (string t in localFiles)
-                {
-                    foreach (var folder in folders.Where(folder => !t.Contains(folder)))
-                    {
-
-                    }
-                }
+            {       
                 foreach (var downloadedFile in _downloadedFiles)
                 {
                     FileInfo fi = new FileInfo(downloadedFile.StoredPath);
@@ -265,27 +246,28 @@ namespace Service
             }
         }
 
-        private List<string> BuildWindowFoldersRepresentaion(List<MyFile> files )
-        {
-            List<string> folders = new List<string>();
-           // var rootId = await GetRootId();
-            foreach (var file in files)
-            {
-                folders.Add(GetParents(file.ParentId, file.Name, files));
-            }
-            return folders;
-        }
+        //private List<string> BuildWindowFoldersRepresentaion(List<MyFile> files )
+        //{
+        //    List<string> folders = new List<string>();
+        //   // var rootId = await GetRootId();
+        //    foreach (var file in files)
+        //    {
+        //        folders.Add(GetParents(file.ParentId, file.Name, files));
+        //    }
+        //    return folders;
+        //}
 
-        private string GetParents(string parentId, string name, List<MyFile> files )
-        {
-            string x = null;
-            foreach (var file in files.Where(f=>f.Id == parentId))
-            {
-                x = x + GetParents(file.ParentId, file.Name, files) + "//";
-            }
+        //private string GetParents(string parentId, string name, List<MyFile> files )
+        //{
+        //    string x = null;
+        //    foreach (var file in files.Where(f=>f.Id == parentId))
+        //    {
+        //        x = x + GetParents(file.ParentId, file.Name, files) + "\\";
+        //    }
 
-            return x + name;
-        }
+        //    return x + name;
+        //}
+
         private async Task UpdateFile(DriveService service, String fileId, String newFilename, bool newRevision)
         {
             try
@@ -295,7 +277,7 @@ namespace Service
 
                 // File's new content.
                 byte[] byteArray = System.IO.File.ReadAllBytes(newFilename);
-                System.IO.MemoryStream stream = new System.IO.MemoryStream(byteArray);
+                MemoryStream stream = new System.IO.MemoryStream(byteArray);
                 // Send the request to the API.
                 FilesResource.UpdateMediaUpload request = service.Files.Update(file, fileId, stream, file.MimeType);
                 request.NewRevision = newRevision;
