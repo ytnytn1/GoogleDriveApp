@@ -113,7 +113,7 @@ namespace Service
                                ?? new List<MyFile>();
         }
 
-        public CancellationTokenSource CancellationTokenSource { get; private set; }
+        public CancellationTokenSource CancellationTokenSource { get; set; } = new CancellationTokenSource();
 
         private long _progress;
 
@@ -182,9 +182,16 @@ namespace Service
                         catch (TaskCanceledException)
                         {
                             //RemoveDownloaded(fileStream);
-                            foreach (var file in _tempList)
+                            //foreach (var file in _tempList)
+                            //{
+                            //    _downloadedFiles.RemoveAll(f => f.FullPath == file.FullPath);
+                            //}
+                            fileStream.Close();
+                            var di = new DirectoryInfo(saveTo);
+                            var fileInfos = di.GetFiles();
+                            foreach (var fileInfo in fileInfos.Where(fi => fi.Name.EndsWith(".tmp")))
                             {
-                                _downloadedFiles.RemoveAll(f => f.FullPath == file.FullPath);
+                                fileInfo.Delete();
                             }
                             return StatusOfDownload.DownloadAborted;
                         }
@@ -212,21 +219,21 @@ namespace Service
                         }
                     }
                 }
-                if(fileResource.IsFolder)
-                {
-                    saveTo += "\\" + fileResource.Name;
-                    Directory.CreateDirectory(saveTo);                    
-                    var files = _allFiles.Where(f => f.ParentId == fileResource.Id).ToList();
-                    foreach (var file in files)
-                    {
-                        var result = await DownloadFile(file, saveTo);
-                        if (result == StatusOfDownload.DownloadAborted)
-                        {
-                           return StatusOfDownload.DownloadAborted;
-                        }
-                    }
-                    return StatusOfDownload.DownloadCompleted;
-                }                
+                //if(fileResource.IsFolder)
+                //{
+                //    saveTo += "\\" + fileResource.Name;
+                //    Directory.CreateDirectory(saveTo);                    
+                //    var files = _allFiles.Where(f => f.ParentId == fileResource.Id).ToList();
+                //    foreach (var file in files)
+                //    {
+                //        var result = await DownloadFile(file, saveTo);
+                //        if (result == StatusOfDownload.DownloadAborted)
+                //        {
+                //           return StatusOfDownload.DownloadAborted;
+                //        }
+                //    }
+                //    return StatusOfDownload.DownloadCompleted;
+                //}                
             }
             _downloadedFiles = _downloadedFiles.Distinct().ToList();
             return StatusOfDownload.DownloadNotStarted;

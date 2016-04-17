@@ -211,25 +211,40 @@ namespace ViewModel
             Progress = args.BytesDownloaded;
         }
 
-        public ICommand DownLoadCommand => _downLoadCommand ??
-                                           (_downLoadCommand = new DelegateCommand<object>(Download));
+        public ICommand DownLoadCommand => _downLoadCommand ?? (_downLoadCommand = new DelegateCommand<string>(Download));
 
-        private async void Download(object o)
+        private async void Download(string path = null)
         {
-            FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
-            folderBrowser.ShowDialog();
-            var path = folderBrowser.SelectedPath;
+            if(path == null)
+            {
+                FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
+                folderBrowser.ShowDialog();
+                path = folderBrowser.SelectedPath;
+            }
             if (path != string.Empty)
             {
                 using (StartOperation())
                 {
                      
-                    foreach (var selectedItem in _selectedItems)
+                    foreach (var selectedItem in _selectedItems.ToList())
                     {
                         Size = 0;
                         IsDownloaded = true;
                         if (selectedItem.Size != null) Size = selectedItem.Size.Value;
-                        var result = await _googleDriveService.DownloadFile(selectedItem, path);
+                        StatusOfDownload result = StatusOfDownload.NotStated;
+                        if (!selectedItem.IsFolder)
+                        {
+                            result = await _googleDriveService.DownloadFile(selectedItem, path);
+                            
+                        }
+                        else
+                        {
+                            path += "\\" + selectedItem.Name;
+                            Directory.CreateDirectory(path);
+                            var files = _allFiles.Where(f => f.ParentId == selectedItem.Id).ToList();
+                            _selectedItems = files;
+                            Download(path);
+                        }
                         switch (result)
                         {
                             case StatusOfDownload.DownLoadFailed:
@@ -293,8 +308,8 @@ namespace ViewModel
                                          (_cancelCommand = new DelegateCommand(Cancel));
 
         private void Cancel()
-        {            
-            _googleDriveService.CancellationTokenSource.Cancel(false);
+        {      
+            _googleDriveService.CancellationTokenSource?.Cancel();
         }
     }
 }

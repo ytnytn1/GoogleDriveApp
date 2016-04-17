@@ -60,9 +60,7 @@
                   ItemsSource="{Binding Files, UpdateSourceTrigger=PropertyChanged}" 
                   AutoGenerateColumns="False" 
                   CanUserAddRows="False" IsReadOnly="True"
-                  Grid.Row="1"
-                  SelectionMode="Extended"
-                  >
+                  Grid.Row="1">
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="SelectionChanged">
                     <i:InvokeCommandAction Command="{Binding SelectItemsCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
@@ -72,7 +70,17 @@
                 <DataGridTemplateColumn Header="Name" Width="300">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="model:MyFile">
-                            <Label Content="{Binding Name}">
+                            <TextBlock Text="{Binding Name}">
+                                <TextBlock.InputBindings>
+                                    <MouseBinding MouseAction="LeftDoubleClick"
+                                                  Command="{Binding RelativeSource={RelativeSource FindAncestor,
+                                                AncestorType={x:Type Window}}, 
+                                                Path=DataContext.MouseDblClickCommand}">
+                                       
+                                    </MouseBinding>
+                                </TextBlock.InputBindings>
+                            </TextBlock>
+                            <!--<Label Content="{Binding Name}">
                                 <i:Interaction.Triggers>
                                     <i:EventTrigger EventName="MouseDoubleClick">
                                         <i:InvokeCommandAction 
@@ -83,7 +91,7 @@
                                             }"/>
                                     </i:EventTrigger>
                                 </i:Interaction.Triggers>
-                            </Label>
+                            </Label>-->
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
