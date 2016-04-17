@@ -10,7 +10,9 @@ namespace Model
     {
         DownLoadFailed,
         DownloadNotStarted,
-        DownloadCompleted
+        DownloadCompleted,
+        DownloadAborted,
+        NotStated
     }
     
 }

@@ -5,12 +5,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
 using IkitMita.Mvvm.ViewModels;
 using Model;
 using Service;
+using Services;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ViewModel
@@ -31,6 +33,11 @@ namespace ViewModel
         private List<MyFile> _selectedItems;
         private List<FileWatcher> _fileWatchers = new List<FileWatcher>();
         private DelegateCommand _syncCommand;
+        private ICommand _cancelCommand;
+        private string _message;
+        private long _progress;
+        private long _size;
+        private bool _isDownloaded;
 
         public MainViewModel()
         {
@@ -40,59 +47,19 @@ namespace ViewModel
 
         private async Task<List<MyFile>> GetFiles()
         {
-            try
+            using (StartOperation())
             {
-                using (StartOperation())
-                {   var fileList = await _googleDriveService.GetFileListAsync();                   
-                   // files = fileList.Items.ToList().Select(i => i.Id, x => x.Title);
-                    return fileList;
-                }                            
-            }
-            catch (HttpRequestException requestException)
-            {
-                MessageBox.Show(requestException.Message);
-                return null;
-            }            
+                var fileList = await _googleDriveService.GetFileListAsync();
+                // files = fileList.Items.ToList().Select(i => i.Id, x => x.Title);
+                return fileList;
+            }  
         }
 
         private Task<string> GetInfo()
         {
-            try
+            using (StartOperation())
             {
-                using (StartOperation())
-                {
-                    return _googleDriveService.GetRootId();
-                }
-            }
-            catch (HttpRequestException requestException)
-            {
-                MessageBox.Show(requestException.Message);
-                return null;
-            }
-        }
-
-        private void SelectItems(object items)
-        {
-            _selectedItems = new List<MyFile>();
-            foreach (var item in (IEnumerable)items)
-            {
-                _selectedItems.Add((MyFile)item);
-            }
-            Debug.WriteLine(_selectedItems.Count);
-        }
-
-        public void OnMouseDoubleClick()
-        {
-            var item = _selectedItems.FirstOrDefault();
-            if (_previuousFolder?.Id != item?.Id)
-            {
-                _previuousFolder = item;
-            }
-            if (item.IsFolder)
-            {
-                var x = _allFiles.FirstOrDefault(f => f.Id == item.Id);//0B2aq3l-wPo8YWFBITy00V0JuLWc
-                var items = new List<MyFile>(_allFiles.Where(f => f.ParentId == x.Id).ToList());
-                Files = items;
+                return _googleDriveService.GetRootId();
             }           
         }
 
@@ -107,17 +74,51 @@ namespace ViewModel
             }
         }
 
+        public string Message
+        {
+            get { return _message; }
+            set
+            {
+                _message = value;
+                OnPropertyChanged();
+            }
+        }
+
         public ICommand SelectItemsCommand => _selectItemsCommand ??
                                               (_selectItemsCommand = new DelegateCommand<object>(SelectItems));
 
+        private void SelectItems(object items)
+        {
+            _selectedItems = new List<MyFile>();
+            foreach (var item in (IEnumerable)items)
+            {
+                _selectedItems.Add((MyFile)item);
+            }
+            Debug.WriteLine(_selectedItems.Count);
+        }
+
         public ICommand MouseDblClickCommand => _mouseDblClickCommand ??
-                                                (_mouseDblClickCommand = new DelegateCommand(OnMouseDoubleClick));
+                                                (_mouseDblClickCommand = new DelegateCommand(ItemDblClick));
+
+        private void ItemDblClick()
+        {
+            var item = _selectedItems.FirstOrDefault();
+            if (_previuousFolder?.Id != item?.Id)
+            {
+                _previuousFolder = item;
+            }
+            if (item.IsFolder)
+            {
+                var x = _allFiles.FirstOrDefault(f => f.Id == item.Id);//0B2aq3l-wPo8YWFBITy00V0JuLWc
+                var items = new List<MyFile>(_allFiles.Where(f => f.ParentId == x.Id).ToList());
+                Files = items;
+            }
+        }
 
         public ICommand SyncCommand => _syncCommand ??
-                                          (_syncCommand = new DelegateCommand(Sync));
+                                          (_syncCommand = new DelegateCommand(async () => await Sync()));
 
-
-        private async void Sync()
+        private async Task Sync()
         {
             using (StartOperation())
             {
@@ -153,25 +154,61 @@ namespace ViewModel
         }
 
         public ICommand LoadedCommand => _loadedCommand ??
-                                         (_loadedCommand = new DelegateCommand(OnLoad));
+                                         (_loadedCommand = new DelegateCommand(LoadService));
 
-        private async void OnLoad()
+        public long Progress
+        {
+            get { return _progress; }
+            set
+            {
+                _progress = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public long Size
+        {
+            get { return _size; }
+            set
+            {
+                _size = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsDownloaded
+        {
+            get { return _isDownloaded; }
+            set
+            {
+                _isDownloaded = value; 
+                OnPropertyChanged();
+            }
+        }
+
+        private async void LoadService()
         {        
             using (StartOperation())
             {
                 try
                 {
                     _googleDriveService = new GoogleDriveService();
+                    _googleDriveService.ProgressChanged += OnProgressChanged;
                     _allFiles = await GetFiles();
-                    _rootId =  await GetInfo();
+                    _rootId = await GetInfo();
+                    await Sync();
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     MessageBox.Show(ex.Message);
                 }
-               
             }                        
             Files = _allFiles?.Where(f => f.ParentId == _rootId).ToList();
+        }
+
+        private void OnProgressChanged(object sender, ProgressChangedEventArgs args)
+        {
+            Progress = args.BytesDownloaded;
         }
 
         public ICommand DownLoadCommand => _downLoadCommand ??
@@ -182,26 +219,38 @@ namespace ViewModel
             FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
             folderBrowser.ShowDialog();
             var path = folderBrowser.SelectedPath;
-            try
+            if (path != string.Empty)
             {
                 using (StartOperation())
                 {
-                     foreach (var selectedItem in _selectedItems)
+                     
+                    foreach (var selectedItem in _selectedItems)
                     {
+                        Size = 0;
+                        IsDownloaded = true;
+                        if (selectedItem.Size != null) Size = selectedItem.Size.Value;
                         var result = await _googleDriveService.DownloadFile(selectedItem, path);
-                        //_fileWatchers.Add(new FileWatcher(path));
-                        if (result != StatusOfDownload.DownloadCompleted)
+                        switch (result)
                         {
-                            MessageBox.Show($"Фаил {selectedItem.Name} не был загружен");
+                            case StatusOfDownload.DownLoadFailed:
+                                IsDownloaded = false;
+                                break;
+                            case StatusOfDownload.DownloadAborted:
+                                IsDownloaded = false;
+                                break;
+                            case StatusOfDownload.DownloadNotStarted:
+                                IsDownloaded = false;
+                                break;
+                            case StatusOfDownload.DownloadCompleted:
+                                IsDownloaded = false;
+                                break;
                         }
-                    }
+                    }                   
                 }
             }
-            catch (Exception ex)
-            {                
-                MessageBox.Show(ex.Message);
-            }                     
         }
+
+        private CancellationTokenSource CancellationToken { get; set; }
 
         private bool IsSubDirectoryOf(string candidate, List<string> others)
         {
@@ -233,11 +282,19 @@ namespace ViewModel
         }
 
         public ICommand CloseCommand => _closeCommand ??
-                                        (_closeCommand = new DelegateCommand<object>(Closing));
+                                        (_closeCommand = new DelegateCommand(Closing));
 
-        private void Closing(object obj)
-        {
-            _googleDriveService.Dispose();
+        private void Closing()
+        {         
+             _googleDriveService.Closing();         
+        }
+
+        public ICommand CancelCommand => _cancelCommand ??
+                                         (_cancelCommand = new DelegateCommand(Cancel));
+
+        private void Cancel()
+        {            
+            _googleDriveService.CancellationTokenSource.Cancel(false);
         }
     }
 }

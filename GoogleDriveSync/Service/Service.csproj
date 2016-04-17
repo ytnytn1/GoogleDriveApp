@@ -96,21 +96,17 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="extensions\ByteArrayHelper.cs" />
     <Compile Include="FileWatcher.cs" />
     <Compile Include="GoogleDriveService.cs" />
     <Compile Include="IService.cs" />
+    <Compile Include="ProgressChangedEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
     <None Include="client_secret.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="JsonData\FileDictionary.Json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="JsonData\PathList.Json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
   </ItemGroup>

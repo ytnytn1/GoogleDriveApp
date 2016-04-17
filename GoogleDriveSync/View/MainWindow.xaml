@@ -8,6 +8,7 @@
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:viewModel="clr-namespace:ViewModel;assembly=ViewModel"
         xmlns:helpers="clr-namespace:MainView.helpers"
+        xmlns:controls="clr-namespace:MainView.controls"
         xmlns:model="clr-namespace:Model;assembly=Model"
         mc:Ignorable="d"        
         Title="MainWindow" Height="350" Width="525"
@@ -42,12 +43,19 @@
                     Grid.Row="2">
             <Button Style="{StaticResource buttonStyle}" Content="Home" />
             <Button Style="{StaticResource buttonStyle}" Content="Go Up" Command="{Binding GoUpCommand}"/>
-            <Button Style="{StaticResource buttonStyle}" Content="Back" />
-            <ProgressBar Name="progressBar" IsIndeterminate="True" 
+            <Button Style="{StaticResource buttonStyle}" Content="Canclel" Command="{Binding CancelCommand}" />
+            <ProgressBar Name="progressBar"  
                          Width="550" Height="20" Margin="25,0,0,0" 
-                         Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-         </StackPanel>
-        
+                         Visibility="{Binding IsDownloaded, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         Value="{Binding Progress}"
+                         Maximum="{Binding Size}"/>
+            <controls:CircularProgressBar Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                           Margin="3,0,0,0"
+                                           Maximum="1000000"
+                                           Minimum="1"
+                                           Value="{Binding Progress}"/>
+        </StackPanel>
+
         <DataGrid Name="GridItems" 
                   ItemsSource="{Binding Files, UpdateSourceTrigger=PropertyChanged}" 
                   AutoGenerateColumns="False" 
@@ -55,17 +63,10 @@
                   Grid.Row="1"
                   SelectionMode="Extended"
                   >
-            <!--<i:Interaction.Behaviors>
-                <behaviors:BindableSelectedItems x:Name="FileSelection" 
-                                         SelectedItems="{Binding SelectedItems}"/>
-            </i:Interaction.Behaviors>-->
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="SelectionChanged">
                     <i:InvokeCommandAction Command="{Binding SelectItemsCommand}" CommandParameter="{Binding Path=SelectedItems,ElementName=GridItems}"/>
                 </i:EventTrigger>
-                <!--<i:EventTrigger EventName="MouseDoubleClick">
-                    <i:InvokeCommandAction Command="{Binding MouseDblClickCommand}"/>
-                </i:EventTrigger>-->
             </i:Interaction.Triggers>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="Name" Width="300">
@@ -106,5 +107,6 @@
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSingleSelected}" Content="Publish"  />
                 <Button Style="{StaticResource buttonStyle}" IsEnabled="{Binding IsSingleSelected}" Content="UnPublish" />
             </DockPanel>
-        </DockPanel></Grid>
+        </DockPanel>
+    </Grid>
 </Window>

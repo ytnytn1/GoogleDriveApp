@@ -5,6 +5,7 @@ using System.Dynamic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Model.Annotations;
 
@@ -26,11 +27,16 @@ namespace Model
 
         public string DownloadUrl { get; set; }
 
-        public string StoredPath { get; set; }
+        public string FullPath { get; set; }
+
+        public string Path { get; set; }
 
         public DateTime? ModifiedDate { get; set; }
 
-       
+        public string Md5Checkum { get; set; }
+
+        public bool IsTrashed { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         [NotifyPropertyChangedInvocator]
